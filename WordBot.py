@@ -4,7 +4,7 @@ import requests
 import back
 import time
 
-TOKEN = "<bot_token>"
+TOKEN = "936679736:AAGsqLr6fuBk0BfRTGCixiJDDSt4ND6CT1E"
 URL = "https://api.telegram.org/bot{}/".format(TOKEN)
 
 
@@ -34,7 +34,7 @@ def get_last_chat_id_and_text(updates):
     text = updates["result"][last_update]["message"]["text"]
 
     result = back.getresult(text)
-
+    print(result)
     chat_id = updates["result"][last_update]["message"]["chat"]["id"]
     return result, chat_id
 
@@ -72,7 +72,8 @@ def reply(updates):
             send_message(text, chat)
 
         except Exception as e:
-            print(e)
+            text = "Something's wrong :("
+            send_message(text, chat)
 
 
 if __name__ == '__main__':
