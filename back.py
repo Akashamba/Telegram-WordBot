@@ -3,8 +3,9 @@ from nltk.corpus import wordnet as wn
 
 def getresult(text):
     action, data = extractInfo(text)
+    print(action)
     if action == 1:
-        return getMeaning(data)
+        return getMeaning(data).capitalize()
 
     elif action == 2:
         syn = getSynonyms(data)
@@ -13,9 +14,9 @@ def getresult(text):
         else:
             if len(syn) > 1:
                 for i in range(2):
-                    return syn[i]
+                    return syn[i].capitalize()
             else:
-                return syn[0]
+                return syn[0].capitalize
 
     elif action == 3:
         ant = getAntonyms(data)
@@ -24,16 +25,26 @@ def getresult(text):
         else:
             if len(ant) > 1:
                 for i in range(2):
-                    return ant[i]
+                    return ant[i].capitalize()
             else:
-                return ant[0]
+                return ant[0].capitalize()
 
+    elif action == 4:
+        return data
+
+    elif action == 5:
+        return "Not a recognized command"
 
 def extractInfo(com):
     x = com.split()
     i = 0
 
-    if "meaning" or "Meaning" in x:
+    if "meaning" in x:
+        while x[i] != "of":
+            i = i + 1
+        return 1, x[i + 1]
+
+    if "Meaning" in x:
         while x[i] != "of":
             i = i + 1
         return 1, x[i + 1]
@@ -48,6 +59,16 @@ def extractInfo(com):
             i = i + 1
         return 3, x[i + 1]
 
+    if "Antonyms" in x:
+        while x[i] != "of":
+            i = i + 1
+        return 3, x[i + 1]
+
+    if "Antonym" in x:
+        while x[i] != "of":
+            i = i + 1
+        return 3, x[i + 1]
+
     if "synonyms" in x:
         while x[i] != "of":
             i = i + 1
@@ -58,21 +79,31 @@ def extractInfo(com):
             i = i + 1
         return 2, x[i + 1]
 
-    if "exit" in x:
-        return 4, None
+    if "Synonyms" in x:
+        while x[i] != "of":
+            i = i + 1
+        return 2, x[i + 1]
 
-    if "quit" in x:
-        return 4, None
+    if "Synonym" in x:
+        while x[i] != "of":
+            i = i + 1
+        return 2, x[i + 1]
 
-    if "hello" in x:
-        msg = ("Hello. Welcome to Wordbot. \nWordbot can help you find meanings, synonyms, antonyms for any word.\n")
-        return 6, None
+    if "/start" in x:
+        return "Hello. Welcome to Wordbot. \nWordbot can help you find meanings, synonyms, antonyms for any word.\n"
 
     if "hi" in x:
-        msg = ("Hello. Welcome to Wordbot. \nWordbot can help you find meanings, synonyms, antonyms for any word.\n")
-        return 6, None
+        return 4, "Hello. How can I help?\n"
 
-    # else:
+    if "hello" in x:
+        return 4, "Hello. How can I help?\n"
+
+    if "Hi" in x:
+        return 4, "Hello. How can I help?\n"
+
+    if "Hello" in x:
+        return 4, "Hello. How can I help?\n"
+
     return 5, None
 
 
