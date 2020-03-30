@@ -1,80 +1,88 @@
-import urllib
-import json
-import requests
+import os
+from flask import Flask, request
+import telebot
+from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
 import back
-import time
-
-TOKEN = "token"
-URL = "https://api.telegram.org/bot{}/".format(TOKEN)
 
 
-def get_url(url):
-    response = requests.get(url)
-    content = response.content.decode("utf8")
-    return content
+TOKEN = 'token'
+bot = telebot.TeleBot(TOKEN)
+server = Flask(__name__)
+
+word = ''
+chat_id = 0
+message_id = 0
 
 
-def get_json_from_url(url):
-    content = get_url(url)
-    js = json.loads(content)
-    return js
+def gen_markup():
+    markup = InlineKeyboardMarkup()
+
+    markup.row_width = 1
+    markup.add(InlineKeyboardButton("Meaning", callback_data="meaning"),
+               InlineKeyboardButton("Synonym", callback_data="synonym"),
+               InlineKeyboardButton("Antonym", callback_data="antonym"),
+               InlineKeyboardButton("Retype Word", callback_data="restart"))
+    return markup
 
 
-def get_updates(offset=None):
-    url = URL + "getUpdates?timeout=100"
-    if offset:
-        url += "&offset={}".format(offset)
-    js = get_json_from_url(url)
-    return js
+def new_markup():
+    return InlineKeyboardMarkup()
 
 
-def get_last_chat_id_and_text(updates):
-    num_updates = len(updates["result"])
-    last_update = num_updates - 1
-    text = updates["result"][last_update]["message"]["text"]
-
-    result = back.getresult(text)
-    print(result)
-    chat_id = updates["result"][last_update]["message"]["chat"]["id"]
-    return result, chat_id
+@bot.message_handler(commands=['start'])
+def start(message):
+    chatid = message.chat.id
+    text = 'Hello. Ask me the meaning of any word. Just type the word to get started.'
+    bot.send_message(chatid, text)
 
 
-def send_message(text, chat_id):
-    #text = urllib.parse.quote_plus(text)
-    url = URL + "sendMessage?text={}&chat_id={}".format(text, chat_id)
-    get_url(url)
+@bot.message_handler(commands=['help'])
+def help_text(message):
+    chatid = message.chat.id
+    text = 'To find the meaning of a word, just type it in.'
+    bot.send_message(chatid, text)
 
 
-def main():
-    last_update_id = None
-    while True:
-        updates = get_updates(last_update_id)
-        if len(updates["result"]) > 0:
-            last_update_id = get_last_update_id(updates) + 1
-            reply(updates)
-        time.sleep(0.5)
+@bot.callback_query_handler(func=lambda call: True)
+def call_handler(call):
+    parameter = call.data + " of " + word
+    if call.data == "meaning":
+        bot.answer_callback_query(call.id, "Fetching " + parameter)
+        answer = back.getresult(parameter)
+    elif call.data == "synonym":
+        bot.answer_callback_query(call.id, "Fetching " + parameter)
+        answer = back.getresult(parameter)
+    elif call.data == "antonym":
+        bot.answer_callback_query(call.id, "Fetching " + parameter)
+        answer = back.getresult(parameter)
+    else:
+        bot.answer_callback_query(call.id, "Processing")
+        answer = "Type the word again"
+    bot.edit_message_reply_markup(chat_id=chat_id, message_id=message_id, reply_markup=new_markup())
+    bot.send_message(chat_id, answer)
 
 
-def get_last_update_id(updates):
-    update_ids = []
-    for update in updates["result"]:
-        update_ids.append(int(update["update_id"]))
-    return max(update_ids)
+@bot.message_handler(func=lambda message: True)
+def message_handler(message):
+    global word, chat_id, message_id
+    word = message.text
+    chat_id = message.chat.id
+    #bot.send_chat_action(chat_id=chat_id, action=telegram.ChatAction.TYPING)
+    message_id = bot.send_message(chat_id, text="Entered Word: " + word, reply_markup=gen_markup()).message_id
 
 
-def reply(updates):
-    for update in updates["result"]:
-        try:
-            text = update["message"]["text"]
-            chat = update["message"]["chat"]["id"]
-
-            text, chat = get_last_chat_id_and_text(get_updates())
-            send_message(text, chat)
-
-        except Exception as e:
-            text = "Something's wrong :("
-            send_message(text, chat)
+@server.route('/' + TOKEN, methods=['POST'])
+def getMessage():
+    bot.process_new_updates([telebot.types.Update.de_json(request.stream.read().decode("utf-8"))])
+    return "working", 200
 
 
-if __name__ == '__main__':
-    main()
+@server.route("/")
+def webhook():
+    bot.remove_webhook()
+    bot.set_webhook(url='heroku-app/' + TOKEN)
+    return back.getresult("what is the meaning of apple"), 200
+
+
+if __name__ == "__main__":
+    server.run(host="0.0.0.0", port=int(os.environ.get('PORT', 5000)))
