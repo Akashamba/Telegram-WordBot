@@ -21,7 +21,8 @@ def gen_markup():
     markup.add(InlineKeyboardButton("Meaning", callback_data="meaning"),
                InlineKeyboardButton("Synonym", callback_data="synonym"),
                InlineKeyboardButton("Antonym", callback_data="antonym"),
-               InlineKeyboardButton("Retype Word", callback_data="restart"))
+               InlineKeyboardButton("Retype Word", callback_data="retype"),
+               InlineKeyboardButton("Done", callback_data="done"))
     return markup
 
 
@@ -30,7 +31,7 @@ def new_markup():
 
 
 @bot.message_handler(commands=['start'])
-def start(message):
+def start_text(message):
     chatid = message.chat.id
     text = 'Hello. Ask me the meaning of any word. Just type the word to get started.'
     bot.send_message(chatid, text)
@@ -45,7 +46,10 @@ def help_text(message):
 
 @bot.callback_query_handler(func=lambda call: True)
 def call_handler(call):
+    global word, chat_id, message_id
+    answer = None
     parameter = call.data + " of " + word
+    
     if call.data == "meaning":
         bot.answer_callback_query(call.id, "Fetching " + parameter)
         answer = back.getresult(parameter)
@@ -55,11 +59,15 @@ def call_handler(call):
     elif call.data == "antonym":
         bot.answer_callback_query(call.id, "Fetching " + parameter)
         answer = back.getresult(parameter)
-    else:
+    elif call.data == "retype":
         bot.answer_callback_query(call.id, "Processing")
         answer = "Type the word again"
-    bot.edit_message_reply_markup(chat_id=chat_id, message_id=message_id, reply_markup=new_markup())
-    bot.send_message(chat_id, answer)
+    else:
+        bot.answer_callback_query(call.id, "Processing")
+        bot.edit_message_reply_markup(chat_id=chat_id, message_id=message_id, reply_markup=new_markup())
+        message_id = 0
+    if answer:
+        bot.send_message(chat_id, answer)
 
 
 @bot.message_handler(func=lambda message: True)
@@ -67,7 +75,78 @@ def message_handler(message):
     global word, chat_id, message_id
     word = message.text
     chat_id = message.chat.id
-    #bot.send_chat_action(chat_id=chat_id, action=telegram.ChatAction.TYPING)
+    if message_id:
+        time.sleep(1)
+        bot.edit_message_reply_markup(chat_id=chat_id, message_id=message_id, reply_markup=new_markup())
+    message_id = bot.send_message(chat_id, text="Entered Word: " + word, reply_markup=gen_markup()).message_idword = ''
+chat_id = 0
+message_id = 0
+
+
+def gen_markup():
+    markup = InlineKeyboardMarkup()
+
+    markup.row_width = 1
+    markup.add(InlineKeyboardButton("Meaning", callback_data="meaning"),
+               InlineKeyboardButton("Synonym", callback_data="synonym"),
+               InlineKeyboardButton("Antonym", callback_data="antonym"),
+               InlineKeyboardButton("Retype Word", callback_data="retype"),
+               InlineKeyboardButton("Done", callback_data="done"))
+    return markup
+
+
+def new_markup():
+    return InlineKeyboardMarkup()
+
+
+@bot.message_handler(commands=['start'])
+def start_text(message):
+    chatid = message.chat.id
+    text = 'Hello. Ask me the meaning of any word. Just type the word to get started.'
+    bot.send_message(chatid, text)
+
+
+@bot.message_handler(commands=['help'])
+def help_text(message):
+    chatid = message.chat.id
+    text = 'To find the meaning of a word, just type it in.'
+    bot.send_message(chatid, text)
+
+
+@bot.callback_query_handler(func=lambda call: True)
+def call_handler(call):
+    global word, chat_id, message_id
+    answer = None
+    parameter = call.data + " of " + word
+    
+    if call.data == "meaning":
+        bot.answer_callback_query(call.id, "Fetching " + parameter)
+        answer = back.getresult(parameter)
+    elif call.data == "synonym":
+        bot.answer_callback_query(call.id, "Fetching " + parameter)
+        answer = back.getresult(parameter)
+    elif call.data == "antonym":
+        bot.answer_callback_query(call.id, "Fetching " + parameter)
+        answer = back.getresult(parameter)
+    elif call.data == "retype":
+        bot.answer_callback_query(call.id, "Processing")
+        answer = "Type the word again"
+    else:
+        bot.answer_callback_query(call.id, "Processing")
+        bot.edit_message_reply_markup(chat_id=chat_id, message_id=message_id, reply_markup=new_markup())
+        message_id = 0
+    if answer:
+        bot.send_message(chat_id, answer)
+
+
+@bot.message_handler(func=lambda message: True)
+def message_handler(message):
+    global word, chat_id, message_id
+    word = message.text
+    chat_id = message.chat.id
+    if message_id:
+        time.sleep(1)
+        bot.edit_message_reply_markup(chat_id=chat_id, message_id=message_id, reply_markup=new_markup())
     message_id = bot.send_message(chat_id, text="Entered Word: " + word, reply_markup=gen_markup()).message_id
 
 
@@ -81,7 +160,7 @@ def getMessage():
 def webhook():
     bot.remove_webhook()
     bot.set_webhook(url='heroku-app/' + TOKEN)
-    return back.getresult("what is the meaning of apple"), 200
+    return "!", 200
 
 
 if __name__ == "__main__":
